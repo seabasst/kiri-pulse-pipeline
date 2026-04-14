@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kiri Pulse — AI Report Pipeline</title>
+<meta property="og:title" content="Kiri Pulse — AI Report Pipeline">
+<meta property="og:description" content="How an AI-powered weekly report goes from raw ad data to a finished Google Slides deck">
+<meta property="og:type" content="website">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0a0e1a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .canvas {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 32px 64px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 48px;
+  }
+
+  /* ── Blur / redact ── */
+  .redacted {
+    filter: blur(5px);
+    user-select: none;
+    pointer-events: none;
+    transition: filter 0.3s;
+  }
+
+  /* ── Flow container ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  /* ── Stage row ── */
+  .stage {
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+    position: relative;
+  }
+
+  /* ── Stage label (left column) ── */
+  .stage-label {
+    width: 140px;
+    flex-shrink: 0;
+    padding-top: 28px;
+    text-align: right;
+  }
+
+  .stage-label .num {
+    font-size: 11px;
+    font-weight: 600;
+    color: #3b82f6;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .stage-label .name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  /* ── Main content column ── */
+  .stage-content {
+    flex: 1;
+    position: relative;
+  }
+
+  /* ── Node cards ── */
+  .node {
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 24px;
+    background: #0f1629;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+
+  .node:hover {
+    border-color: #334155;
+  }
+
+  .node-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .node-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .node-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+
+  .node-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* ── Color themes ── */
+  .meta .node { border-color: #1e3a5f; background: linear-gradient(135deg, #0f1629 0%, #0d1a2d 100%); }
+  .meta .node-icon { background: #1e3a5f; }
+
+  .bq .node { border-color: #1a3340; background: linear-gradient(135deg, #0f1629 0%, #0d1f2a 100%); }
+  .bq .node-icon { background: #1a3340; }
+
+  .claude .node { border-color: #2d1f3d; background: linear-gradient(135deg, #0f1629 0%, #1a1230 100%); }
+  .claude .node-icon { background: #2d1f3d; }
+
+  .slides .node { border-color: #1f3329; background: linear-gradient(135deg, #0f1629 0%, #0d2418 100%); }
+  .slides .node-icon { background: #1f3329; }
+
+  .output .node { border-color: #3d2d1a; background: linear-gradient(135deg, #0f1629 0%, #1f1a0d 100%); }
+  .output .node-icon { background: #3d2d1a; }
+
+  /* ── Inner detail grids ── */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .detail-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .detail-card .label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .detail-card .value {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.5;
+  }
+
+  .detail-card code {
+    font-size: 11px;
+    color: #7dd3fc;
+    background: rgba(125, 211, 252, 0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* ── Skills pills ── */
+  .skills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .pill {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .pill.purple { color: #c084fc; border-color: #3b1f6e; background: rgba(192,132,252,0.06); }
+  .pill.blue   { color: #60a5fa; border-color: #1e3a5f; background: rgba(96,165,250,0.06); }
+  .pill.teal   { color: #2dd4bf; border-color: #134e4a; background: rgba(45,212,191,0.06); }
+  .pill.green  { color: #4ade80; border-color: #14532d; background: rgba(74,222,128,0.06); }
+  .pill.amber  { color: #fbbf24; border-color: #78350f; background: rgba(251,191,36,0.06); }
+  .pill.rose   { color: #fb7185; border-color: #4c0519; background: rgba(251,113,133,0.06); }
+
+  /* ── Arrow SVG ── */
+  .arrow-down {
+    display: flex;
+    justify-content: center;
+    height: 52px;
+    position: relative;
+  }
+
+  .arrow-down .line {
+    width: 2px;
+    height: 100%;
+    position: relative;
+  }
+
+  .arrow-down .line::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(to bottom, #1e293b, #334155);
+  }
+
+  .arrow-down .line::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #334155;
+  }
+
+  .arrow-label {
+    position: absolute;
+    left: calc(50% + 16px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: #475569;
+    white-space: nowrap;
+    padding: 2px 8px;
+    background: #0a0e1a;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+  }
+
+  /* ── MCP badge ── */
+  .mcp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Claude brain detail ── */
+  .claude-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .claude-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .file-ref {
+    font-size: 11px;
+    color: #64748b;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .file-ref code {
+    color: #7dd3fc;
+    background: rgba(125, 211, 252, 0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+  }
+
+  .file-ref .arrow {
+    color: #334155;
+  }
+
+  /* ── Slide preview mock ── */
+  .slides-preview {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .slide-thumb {
+    width: 96px;
+    height: 54px;
+    border-radius: 4px;
+    border: 1px solid #1e293b;
+    background: #f8fafc;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: #475569;
+    text-align: center;
+    padding: 4px;
+    line-height: 1.3;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide-thumb::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #3b82f6;
+  }
+
+  .slide-thumb.active {
+    border-color: #3b82f6;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .stage { flex-direction: column; gap: 8px; }
+    .stage-label { width: auto; text-align: left; padding-top: 0; }
+    .claude-inner { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <h1>Kiri Pulse — AI Report Pipeline</h1>
+  <p class="subtitle">How a weekly client report goes from raw ad data to a finished Google Slides deck — fully automated with Claude</p>
+
+  <div class="flow">
+
+    <!-- ─── STAGE 1: DATA SOURCE ─── -->
+    <div class="stage meta">
+      <div class="stage-label">
+        <div class="num">Stage 1</div>
+        <div class="name">Data Source</div>
+      </div>
+      <div class="stage-content">
+        <div class="node">
+          <div class="node-header">
+            <div class="node-icon">📢</div>
+            <div>
+              <div class="node-title">Meta Ads (Facebook & Instagram)</div>
+              <div class="node-desc">Live campaign data — impressions, clicks, spend, purchases, revenue</div>
+            </div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-card">
+              <div class="label">Campaigns</div>
+              <div class="value"><span class="redacted">SE-Kuling, NO-Kuling, SE-BS-Catalog, SE-STOY</span>, + multi-market</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Brands tracked</div>
+              <div class="value"><span class="redacted">Client Brand</span> (main) + <span class="redacted">Sub-brand</span> (retargeting)</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Markets</div>
+              <div class="value">Sweden, Norway, Denmark, UK</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Key metrics</div>
+              <div class="value">Spend, ROAS, CPA, CTR, CPC, Purchases, Revenue</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="stage">
+      <div class="stage-label"></div>
+      <div class="stage-content">
+        <div class="arrow-down">
+          <div class="line"></div>
+          <div class="arrow-label">Meta Marketing API &rarr; nightly sync</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── STAGE 2: DATA WAREHOUSE ─── -->
+    <div class="stage bq">
+      <div class="stage-label">
+        <div class="num">Stage 2</div>
+        <div class="name">Data Warehouse</div>
+      </div>
+      <div class="stage-content">
+        <div class="node">
+          <div class="node-header">
+            <div class="node-icon">🗄</div>
+            <div>
+              <div class="node-title">Google BigQuery</div>
+              <div class="node-desc">Project: <code>kiri-media-reporting</code> &nbsp;/&nbsp; Dataset: <code class="redacted">client_dataset</code></div>
+            </div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-card">
+              <div class="label">Table</div>
+              <div class="value"><code class="redacted">client</code><code>.meta_ads</code></div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Grain</div>
+              <div class="value">One row per ad per day (<code>time_increment_day</code>)</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Revenue col</div>
+              <div class="value"><code>action_value_offsite_conversion _fb_pixel_purchase</code></div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Market extraction</div>
+              <div class="value"><code>REGEXP_EXTRACT(campaign_name, r'^([A-Z]{'{'}2{'}'}-')</code></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="stage">
+      <div class="stage-label"></div>
+      <div class="stage-content">
+        <div class="arrow-down">
+          <div class="line"></div>
+          <div class="arrow-label">5 SQL queries &nbsp;via&nbsp; <code style="font-size:10px;color:#7dd3fc;background:rgba(125,211,252,0.08);padding:1px 4px;border-radius:3px;">google.cloud.bigquery</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── STAGE 3: CLAUDE BRAIN ─── -->
+    <div class="stage claude">
+      <div class="stage-label">
+        <div class="num">Stage 3</div>
+        <div class="name">Intelligence</div>
+      </div>
+      <div class="stage-content">
+        <div class="node">
+          <div class="node-header">
+            <div class="node-icon">🧠</div>
+            <div>
+              <div class="node-title">Claude + Kiri Pulse Engine</div>
+              <div class="node-desc">Orchestrates data queries, applies business context, generates insights</div>
+            </div>
+          </div>
+
+          <div class="claude-inner">
+            <div class="claude-section">
+              <h4>Data Queries</h4>
+              <div class="file-ref"><code>_query_weekly_summary()</code> <span class="arrow">&rarr;</span> 7d vs prev 7d</div>
+              <div class="file-ref"><code>_query_by_country()</code> <span class="arrow">&rarr;</span> SE / NO / DK / UK</div>
+              <div class="file-ref"><code>_query_top_campaigns()</code> <span class="arrow">&rarr;</span> top 5 by ROAS</div>
+              <div class="file-ref"><code>_query_top_ads()</code> <span class="arrow">&rarr;</span> top 5 by revenue</div>
+              <div class="file-ref"><code>_query_bottom_campaigns()</code> <span class="arrow">&rarr;</span> underperformers</div>
+            </div>
+            <div class="claude-section">
+              <h4>Business Context</h4>
+              <div class="file-ref"><code>clients/<span class="redacted">client</span>.json</code></div>
+              <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">KPIs: ROAS target, max CPA, min CTR</div>
+              <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">Warning flags &amp; thresholds</div>
+              <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">Seasonal strategy context</div>
+              <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">Channel priorities &amp; goals</div>
+            </div>
+          </div>
+
+          <div class="skills-row">
+            <span class="pill purple">Anomaly Detection</span>
+            <span class="pill blue">WoW Comparison</span>
+            <span class="pill teal">Market Breakdown</span>
+            <span class="pill green">Auto-Recommendations</span>
+            <span class="pill amber">Campaign Scoring</span>
+            <span class="pill rose">Warning Flags</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="stage">
+      <div class="stage-label"></div>
+      <div class="stage-content">
+        <div class="arrow-down">
+          <div class="line"></div>
+          <div class="arrow-label"><span class="mcp-badge">MCP</span>&nbsp; Google Slides API &nbsp;+&nbsp; Drive API</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── STAGE 4: SLIDES DESIGN ─── -->
+    <div class="stage slides">
+      <div class="stage-label">
+        <div class="num">Stage 4</div>
+        <div class="name">Slide Design</div>
+      </div>
+      <div class="stage-content">
+        <div class="node">
+          <div class="node-header">
+            <div class="node-icon">🎨</div>
+            <div>
+              <div class="node-title">Google Slides Design Engine</div>
+              <div class="node-desc">Programmatic slide construction via Slides API batchUpdate</div>
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-card">
+              <div class="label">Design system</div>
+              <div class="value">Snow background, Inter font, blue/slate palette, card-based metrics</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Layout engine</div>
+              <div class="value">EMU-based positioning (914400/inch), 10"&times;5.625" widescreen</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Components</div>
+              <div class="value"><code>_add_card</code>, <code>_build_table_slide</code>, <code>_slide_header</code>, <code>_add_rect</code></div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Color coding</div>
+              <div class="value">
+                <span style="color:#22c55e">&#9679;</span> ROAS &ge; target &nbsp;
+                <span style="color:#ef4444">&#9679;</span> ROAS critical &nbsp;
+                <span style="color:#f59e0b">&#9679;</span> Warning
+              </div>
+            </div>
+          </div>
+
+          <div class="slides-preview">
+            <div class="slide-thumb active">Title<br><span class="redacted">Client</span></div>
+            <div class="slide-thumb">Overview<br>6 KPI cards</div>
+            <div class="slide-thumb">Markets<br>SE NO DK UK</div>
+            <div class="slide-thumb">Top<br>Campaigns</div>
+            <div class="slide-thumb">Top Ads<br>by Revenue</div>
+            <div class="slide-thumb">Summary<br>Assessment</div>
+            <div class="slide-thumb">Actions &<br>Recs</div>
+            <div class="slide-thumb">Closing<br>Kiri Media</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="stage">
+      <div class="stage-label"></div>
+      <div class="stage-content">
+        <div class="arrow-down">
+          <div class="line"></div>
+          <div class="arrow-label">Saved to Google Drive &nbsp;/&nbsp; Reports folder</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── STAGE 5: OUTPUT ─── -->
+    <div class="stage output">
+      <div class="stage-label">
+        <div class="num">Stage 5</div>
+        <div class="name">Output</div>
+      </div>
+      <div class="stage-content">
+        <div class="node">
+          <div class="node-header">
+            <div class="node-icon">📊</div>
+            <div>
+              <div class="node-title">Weekly Report — Google Slides</div>
+              <div class="node-desc">Shared with client, archived in Notion, link posted to Slack</div>
+            </div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-card">
+              <div class="label">Distribution</div>
+              <div class="value">Google Drive shared folder + optional email share</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Tracking</div>
+              <div class="value">Notion monthly reports page + Slack notification</div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Automation</div>
+              <div class="value">
+                <code>create_presentation.py</code> — generic engine<br>
+                One command: <code>python3 create_presentation.py <span class="redacted">client</span></code>
+              </div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Update mode</div>
+              <div class="value"><code>--update &lt;pres_id&gt;</code> overwrites existing deck in-place</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
