@@ -40,15 +40,7 @@
     margin-bottom: 48px;
   }
 
-  /* ── Blur / redact ── */
-  .redacted {
-    filter: blur(5px);
-    user-select: none;
-    pointer-events: none;
-    transition: filter 0.3s;
-  }
-
-  /* ── Flow container ── */
+/* ── Flow container ── */
   .flow {
     display: flex;
     flex-direction: column;
@@ -397,11 +389,11 @@
           <div class="detail-grid">
             <div class="detail-card">
               <div class="label">Campaigns</div>
-              <div class="value"><span class="redacted">SE-Kuling, NO-Kuling, SE-BS-Catalog, SE-STOY</span>, + multi-market</div>
+              <div class="value">SE-Brand123-Catalog, NO-Brand123-Evergreen, SE-Brand123-Offers + multi-market</div>
             </div>
             <div class="detail-card">
               <div class="label">Brands tracked</div>
-              <div class="value"><span class="redacted">Client Brand</span> (main) + <span class="redacted">Sub-brand</span> (retargeting)</div>
+              <div class="value">Brand123 (main) + Brand123-Outlet (retargeting)</div>
             </div>
             <div class="detail-card">
               <div class="label">Markets</div>
@@ -439,13 +431,13 @@
             <div class="node-icon">🗄</div>
             <div>
               <div class="node-title">Google BigQuery</div>
-              <div class="node-desc">Project: <code>kiri-media-reporting</code> &nbsp;/&nbsp; Dataset: <code class="redacted">client_dataset</code></div>
+              <div class="node-desc">Project: <code>kiri-media-reporting</code> &nbsp;/&nbsp; Dataset: <code>brand123</code></div>
             </div>
           </div>
           <div class="detail-grid">
             <div class="detail-card">
               <div class="label">Table</div>
-              <div class="value"><code class="redacted">client</code><code>.meta_ads</code></div>
+              <div class="value"><code>brand123.meta_ads</code></div>
             </div>
             <div class="detail-card">
               <div class="label">Grain</div>
@@ -502,7 +494,7 @@
             </div>
             <div class="claude-section">
               <h4>Business Context</h4>
-              <div class="file-ref"><code>clients/<span class="redacted">client</span>.json</code></div>
+              <div class="file-ref"><code>clients/brand123.json</code></div>
               <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">KPIs: ROAS target, max CPA, min CTR</div>
               <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">Warning flags &amp; thresholds</div>
               <div class="file-ref" style="padding-left: 8px; color: #94a3b8;">Seasonal strategy context</div>
@@ -573,7 +565,7 @@
           </div>
 
           <div class="slides-preview">
-            <div class="slide-thumb active">Title<br><span class="redacted">Client</span></div>
+            <div class="slide-thumb active">Title<br>Brand123</div>
             <div class="slide-thumb">Overview<br>6 KPI cards</div>
             <div class="slide-thumb">Markets<br>SE NO DK UK</div>
             <div class="slide-thumb">Top<br>Campaigns</div>
@@ -625,7 +617,7 @@
               <div class="label">Automation</div>
               <div class="value">
                 <code>create_presentation.py</code> — generic engine<br>
-                One command: <code>python3 create_presentation.py <span class="redacted">client</span></code>
+                One command: <code>python3 create_presentation.py brand123</code>
               </div>
             </div>
             <div class="detail-card">
